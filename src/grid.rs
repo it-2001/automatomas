@@ -131,6 +131,86 @@ impl Grid {
                     None => (),
                 }
             },
+            CellStates::Fire(level) => {
+                for gp in self.find_all_around(cell.0, cell.1, &CellStates::Gunpowder) {
+                    self.cell_unchecked(gp.0, gp.1).state = CellStates::Spark
+                }
+                for gp in self.find_all_around(cell.0, cell.1, &CellStates::Water) {
+                    self.cell_unchecked(gp.0, gp.1).state = CellStates::Vapor
+                }
+                let rand = self.rng.gen_range(-1..2);
+                match self.get_cell(cell.0 + rand, cell.1 - 1) {
+                    Some(other) => {
+                        if other.state.hardness() > state.hardness() && self.rng.gen_range(0..50) > 20 {
+                            self.set(cell.0 + rand, cell.1 - 1, state)
+                        }
+                    }
+                    None => {
+
+                    }
+                }
+                match self.rng.gen_range(0..50) {
+                    0..=20 => {
+                        self.cell_unchecked(cell.0, cell.1).state = CellStates::Air
+                    }
+                    0..=40 => {
+                        if level == 0 {
+                            self.cell_unchecked(cell.0, cell.1).state = CellStates::Air
+                        }else {
+                            self.cell_unchecked(cell.0, cell.1).state = CellStates::Fire(level - 1)
+                        }
+                    }
+                    _ => {}
+                }
+            }
+            CellStates::Gunpowder => {
+                match self.get_cell(cell.0, cell.1 + 1) {
+                    Some(other) => {
+                        if other.state.hardness() > state.hardness() {
+                            self.swap(cell.0, cell.1, (cell.0, cell.1 + 1));
+                            return;
+                        }
+                    }
+                    None => ()
+                }
+                let mut side = self.rng.gen_range(0..2) * 2 - 1;
+                for _ in 0..2 {
+                    match self.get_cell(cell.0 + side, cell.1 + 1) {
+                        Some(other) => {
+                            if other.state.hardness() > state.hardness() {
+                                self.swap(cell.0, cell.1, (cell.0 + side, cell.1 + 1));
+                                return;
+                            }
+                        },
+                        None => (),
+                    }
+                    side *= -1;
+                }
+
+            }
+            CellStates::Spark => {
+                let direction = (self.rng.gen_range(0..2) * 2 - 1, self.rng.gen_range(0..2) * 2 - 1);
+                let mut power = self.rng.gen_range(0..20);
+                while power > 0 {
+                    self.set(cell.0 + direction.0 * power, cell.1 + direction.1 * power, CellStates::Fire(2));
+                    power -= 1;
+                }
+                self.set(cell.0, cell.1, CellStates::Air)
+            }
+            CellStates::Vapor => {
+                let rand = self.rng.gen_range(-1..2);
+                match self.get_cell(cell.0 + rand, cell.1 - 1) {
+                    Some(other) => {
+                        if other.state.hardness() > state.hardness() && self.rng.gen_range(0..50) > 20 {
+                            self.swap(cell.0, cell.1, (cell.0 + rand, cell.1 - 1))
+                        }
+                    }
+                    None => {
+
+                    }
+                }
+
+            }
             CellStates::Wall => (),
             CellStates::Barrier => (),
             CellStates::Border => unreachable!("Border should not be stepped"),
@@ -155,5 +235,48 @@ impl Grid {
 
     pub fn bounds(&self, x: i32, y: i32) -> bool {
         x >= 0 && x < self.size.0 && y >= 0 && y < self.size.1
+    }
+
+    pub fn cell_unchecked(&mut self, x: i32, y: i32) -> &mut Cell {
+        &mut self.cells[x as usize][y as usize]
+    }
+
+    pub fn is_around(&self, x: i32, y: i32, state: &CellStates) -> bool {
+        for i in -1..2 {
+            for j in -1..2 {
+                if i == 0 && j == 0 {
+                    continue;
+                }
+                match self.get_cell(x + i, y + j) {
+                    Some(cell) => {
+                        if cell.state == *state {
+                            return true
+                        }
+                    }
+                    None => ()
+                }
+            }
+        }
+        false
+    }
+
+    pub fn find_all_around(&self, x: i32, y: i32, state: &CellStates) -> Vec<(i32, i32)> {
+        let mut result = Vec::new();
+        for i in -1..2 {
+            for j in -1..2 {
+                if i == 0 && j == 0 {
+                    continue;
+                }
+                match self.get_cell(x + i, y + j) {
+                    Some(cell) => {
+                        if cell.state == *state {
+                            result.push((x+i, y+j));
+                        }
+                    }
+                    None => ()
+                }
+            }
+        }
+        result
     }
 }

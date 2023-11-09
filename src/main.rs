@@ -56,7 +56,7 @@ struct Game {
     grid: Grid,
     settings: Settings,
     screen: (i32, i32),
-    saved: Vec<Grid>,
+    saved: Vec<Vec<Vec<Cell>>>,
 }
 
 struct Settings {
@@ -197,7 +197,7 @@ impl Game {
             ),
             cstr!("Save"),
         ) {
-            self.saved.push(self.grid.clone());
+            self.saved.push(self.grid.cells.clone());
         }
         let load_txt = if self.saved.len() > 0 {
             format!("load ({})", self.saved.len())
@@ -214,7 +214,7 @@ impl Game {
             cstr!(load_txt.as_str()),
         ) {
             if let Some(grid) = self.saved.pop() {
-                self.grid = grid;
+                self.grid.cells = grid;
             }
         }
         // bounds, text_left, text_right, value, min_value, max_value
