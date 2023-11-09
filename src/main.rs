@@ -1,6 +1,6 @@
 use std::{
     ffi::{CStr, OsStr},
-    io::Empty,
+    io::Empty, collections::HashMap, os::windows,
 };
 
 /*
@@ -13,6 +13,9 @@ use cells::*;
 
 mod grid;
 use grid::*;
+
+mod window;
+
 
 use raylib::prelude::*;
 
@@ -29,6 +32,8 @@ fn main() {
 
     let mut game = Game::new((rl.get_screen_width(), rl.get_screen_height()));
 
+    let mut windows = window::get_all_windows();
+
     rl.set_target_fps(60);
 
     while !rl.window_should_close() {
@@ -38,13 +43,32 @@ fn main() {
         }
         let mut d = rl.begin_drawing(&thread);
 
-        game.update();
+        match game.state() {
+            GameState::Running => {
 
-        d.clear_background(Color::WHITE);
-        game.draw(&mut d);
+                game.update();
+        
+                d.clear_background(Color::WHITE);
+                game.draw(&mut d);
+        
+                // draw fps in the bottom left corner
+                d.draw_fps(10, game.screen.1 - 30);
+            },
+            GameState::Paused => {
+                d.clear_background(Color::WHITE);
+                game.draw(&mut d);
+            }
+            GameState::Window => {
+                d.clear_background(Color::WHITE);
+                game.draw(&mut d);
 
-        // draw fps in the bottom left corner
-        d.draw_fps(10, game.screen.1 - 30);
+                if let Some(window) = windows.get_mut(game.window.as_ref().unwrap()) {
+                    if !window.draw(&mut game.grid, &mut d) {
+                        game.window = None;
+                    }
+                }
+            }
+        }
 
         // print runtime usage
         // let elapsed = sys_time.elapsed().unwrap();
@@ -57,6 +81,9 @@ struct Game {
     settings: Settings,
     screen: (i32, i32),
     saved: Vec<Vec<Vec<Cell>>>,
+    /// 
+    backup: Vec<Vec<Vec<Cell>>>,
+    window: Option<String>,
 }
 
 struct Settings {
@@ -68,14 +95,12 @@ struct Settings {
 struct Brush {
     size: i32,
     state: Option<CellStates>,
+    override_state: bool,
 }
 
 impl Game {
     pub fn new(screen: (i32, i32)) -> Game {
         let mut grid = Grid::new(GRID_INIT_SIZE);
-        grid.cells[3][6] = Cell {
-            state: CellStates::Sand,
-        };
         grid.recalculate_dim(screen);
         Game {
             grid,
@@ -86,9 +111,22 @@ impl Game {
                 brush: Brush {
                     size: 3,
                     state: None,
+                    override_state: false,
                 },
             },
             saved: Vec::new(),
+            window: None,
+            backup: Vec::new(),
+        }
+    }
+
+    pub fn state(&self) -> GameState {
+        match self.window {
+            Some(_) => GameState::Window,
+            None => match self.settings.pause {
+                true => GameState::Paused,
+                false => GameState::Running,
+            },
         }
     }
 
@@ -118,22 +156,62 @@ impl Game {
                 - self.grid.dim.1 as f64 / self.grid.cell_dim.1 as f64) as i32,
         );
         // check bounds
+        if d.is_mouse_button_down(MouseButton::MOUSE_RIGHT_BUTTON)
+        && mouse_cell.0 >= 0
+        && mouse_cell.0 < self.grid.size.0
+        && mouse_cell.1 >= 0
+        && mouse_cell.1 < self.grid.size.1
+        && (self.state() == GameState::Running || self.state() == GameState::Paused)
+    {
+        // save backup
+        if d.is_mouse_button_pressed(MouseButton::MOUSE_RIGHT_BUTTON) {
+            self.backup();
+        }
+        for x in 0..self.settings.brush.size {
+            let x = x - self.settings.brush.size / 2;
+            for y in 0..self.settings.brush.size {
+                let y = y - self.settings.brush.size / 2;
+                if mouse_cell.0 + x < self.grid.size.0
+                    && mouse_cell.1 + y < self.grid.size.1
+                    && mouse_cell.0 + x >= 0
+                    && mouse_cell.1 + y >= 0
+                {
+                    self.grid.cells[(mouse_cell.0 + x) as usize]
+                        [(mouse_cell.1 + y) as usize]
+                        .state = CellStates::Air;
+                }
+            }
+        }
+    }
         if d.is_mouse_button_down(MouseButton::MOUSE_LEFT_BUTTON)
             && mouse_cell.0 >= 0
             && mouse_cell.0 < self.grid.size.0
             && mouse_cell.1 >= 0
             && mouse_cell.1 < self.grid.size.1
+            && (self.state() == GameState::Running || self.state() == GameState::Paused)
         {
+            // save backup
+            if d.is_mouse_button_pressed(MouseButton::MOUSE_LEFT_BUTTON) {
+                self.backup();
+            }
             match self.settings.brush.state {
                 Some(state) => {
                     for x in 0..self.settings.brush.size {
+                        let x = x - self.settings.brush.size / 2;
                         for y in 0..self.settings.brush.size {
+                            let y = y - self.settings.brush.size / 2;
                             if mouse_cell.0 + x < self.grid.size.0
                                 && mouse_cell.1 + y < self.grid.size.1
+                                && mouse_cell.0 + x >= 0
+                                && mouse_cell.1 + y >= 0
                             {
-                                self.grid.cells[(mouse_cell.0 + x) as usize]
+                                if state == CellStates::Air || self.settings.brush.override_state || self.grid.cells[(mouse_cell.0 + x) as usize]
                                     [(mouse_cell.1 + y) as usize]
-                                    .state = state;
+                                    .state.hardness() >= state.hardness() {
+                                    self.grid.cells[(mouse_cell.0 + x) as usize]
+                                        [(mouse_cell.1 + y) as usize]
+                                        .state = state;
+                                    }
                             }
                         }
                     }
@@ -214,6 +292,7 @@ impl Game {
             cstr!(load_txt.as_str()),
         ) {
             if let Some(grid) = self.saved.pop() {
+                self.backup();
                 self.grid.cells = grid;
             }
         }
@@ -231,6 +310,32 @@ impl Game {
             1.,
             25.,
         ) as i32;
+        let override_text = match self.settings.brush.override_state {
+            true => "Override: On",
+            false => "Override: Off"
+        };
+        if d.gui_button(
+            Rectangle::new(
+                button_padding.0 as f32,
+                button_height as f32 + button_dims.1 as f32 * 5.25,
+                button_dims.0 as f32,
+                button_dims.1 as f32,
+            ),
+            cstr!(override_text),
+        ) {
+            self.settings.brush.override_state = !self.settings.brush.override_state;
+        }
+        if d.gui_button(
+            Rectangle::new(
+                button_padding.0 as f32,
+                button_height as f32 + button_dims.1 as f32 * 6.3,
+                button_dims.0 as f32,
+                button_dims.1 as f32,
+            ),
+            cstr!("Undo"),
+        ) {
+            self.undo();
+        }
         // right side
         // draw button for each cell state for brush
         for (idx, state) in CellStates::list().iter().enumerate() {
@@ -268,8 +373,42 @@ impl Game {
                 }
             }
         }
+        // draw coordinates
+        let mouse_cell = (
+            (mouse.x as f64 / self.grid.cell_dim.0 as f64
+                - self.grid.dim.0 as f64 / self.grid.cell_dim.0 as f64) as i32,
+            (mouse.y as f64 / self.grid.cell_dim.1 as f64
+                - self.grid.dim.1 as f64 / self.grid.cell_dim.1 as f64) as i32,
+        );
+        if mouse_cell.0 >= 0
+            && mouse_cell.0 < self.grid.size.0
+            && mouse_cell.1 >= 0
+            && mouse_cell.1 < self.grid.size.1
+        {
+            d.draw_text(
+                &format!("({}, {})", mouse_cell.0, mouse_cell.1),
+                10,
+                10,
+                20,
+                Color::BLACK,
+            );
+        }
+
         // grid
         self.grid.draw(d);
+    }
+
+    fn backup(&mut self) {
+        self.backup.push(self.grid.cells.clone());
+        if self.backup.len() > 1000 {
+            self.backup.remove(0);
+        }
+    }
+
+    fn undo(&mut self) {
+        if let Some(grid) = self.backup.pop() {
+            self.grid.cells = grid;
+        }
     }
 }
 
@@ -284,4 +423,11 @@ impl Cell {
             state: CellStates::Air,
         }
     }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum GameState {
+    Running,
+    Paused,
+    Window,
 }

@@ -19,19 +19,19 @@ impl CellStates {
     pub fn color(&self) -> Color {
         match &self {
             Self::Air => Color::BLACK,
-            Self::Sand => Color::YELLOW,
-            Self::Water => Color::DARKBLUE,
-            Self::Plague => Color::GREEN,
-            Self::Wall => Color::GRAY,
+            Self::Sand => Color{r: 255, g: 255, b: 51, a: 255},
+            Self::Water => Color{r: 0, g: 100, b: 230, a: 255},
+            Self::Plague => Color{r: 51, g: 200, b: 51, a: 255},
+            Self::Wall => Color {r: 204, g: 115, b: 100, a: 255},
             Self::Barrier => Color::RED,
-            Self::Vapor => Color::BLUE,
+            Self::Vapor => Color{r: 179, g: 179, b: 230, a: 255},
             Self::Fire(level) => match *level {
-                0 => Color::YELLOW,
-                1 => Color::ORANGE,
-                2 => Color::RED,
+                0 => Color{r: 200, g: 255, b: 0, a: 255},
+                1 => Color{r: 200, g: 100, b: 0, a: 255},
+                2 => Color{r: 200, g: 0, b: 0, a: 255},
                 _ => unreachable!("Fire not handled properly by the game")
             }
-            Self::Gunpowder => Color::DARKGRAY,
+            Self::Gunpowder => Color{r: 51, g: 51, b: 51, a: 255},
             Self::Spark => Color::WHITE,
             Self::Border => unreachable!("Border should not be drawn"),
         }
@@ -55,7 +55,7 @@ impl CellStates {
 
     /// Returns a list of all possible cell states in order. (except border)
     pub fn list() -> Vec<Self> {
-        vec![Self::Air, Self::Wall, Self::Sand, Self::Water, Self::Plague, Self::Fire(2), Self::Gunpowder, Self::Barrier]
+        vec![Self::Wall, Self::Sand, Self::Water, Self::Plague, Self::Fire(2), Self::Gunpowder, Self::Barrier]
     }
 }
 

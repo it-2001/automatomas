@@ -150,7 +150,7 @@ impl Grid {
                     }
                 }
                 match self.rng.gen_range(0..50) {
-                    0..=20 => {
+                    0..=5 => {
                         self.cell_unchecked(cell.0, cell.1).state = CellStates::Air
                     }
                     0..=40 => {
@@ -186,11 +186,15 @@ impl Grid {
                     }
                     side *= -1;
                 }
-
             }
             CellStates::Spark => {
-                let direction = (self.rng.gen_range(0..2) * 2 - 1, self.rng.gen_range(0..2) * 2 - 1);
-                let mut power = self.rng.gen_range(0..20);
+                let direction = loop {
+                    let direction = (self.rng.gen_range(-1..2), self.rng.gen_range(-1..2));
+                    if direction != (0, 0) {
+                        break direction;
+                    }
+                };
+                let mut power = self.rng.gen_range(0..45);
                 while power > 0 {
                     self.set(cell.0 + direction.0 * power, cell.1 + direction.1 * power, CellStates::Fire(2));
                     power -= 1;
@@ -198,6 +202,15 @@ impl Grid {
                 self.set(cell.0, cell.1, CellStates::Air)
             }
             CellStates::Vapor => {
+                match self.rng.gen_range(0..400) {
+                    0..=1 => {
+                        self.cell_unchecked(cell.0, cell.1).state = CellStates::Air
+                    }
+                    0..=3 => {
+                        self.cell_unchecked(cell.0, cell.1).state = CellStates::Water
+                    }
+                    _ => {}
+                }
                 let rand = self.rng.gen_range(-1..2);
                 match self.get_cell(cell.0 + rand, cell.1 - 1) {
                     Some(other) => {

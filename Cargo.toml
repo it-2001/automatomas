@@ -8,3 +8,4 @@ edition = "2021"
 [dependencies]
 raylib = "3.7"
 rand = "*"
+cstr = "0.2.11"
