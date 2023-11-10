@@ -57,6 +57,64 @@ impl Grid {
     pub fn step(&mut self) {
         let cell = (self.rng.gen_range(0..self.size.0), self.rng.gen_range(0..self.size.1));
         let state = self.cells[cell.0 as usize][cell.1 as usize].state;
+        macro_rules! liquid_movement {
+            ($x:expr, $y:expr, $state:expr) => {
+                match self.get_cell(cell.0, cell.1 + 1) {
+                    Some(other) => {
+                        if other.state.hardness() > state.hardness() {
+                            self.swap(cell.0, cell.1, (cell.0, cell.1 + 1));
+                            return;
+                        }
+                    }
+                    None => ()
+                }
+                let mut side = self.rng.gen_range(0..2) * 2 - 1;
+                for _ in 0..2 {
+                    match self.get_cell(cell.0 + side, cell.1 + 1) {
+                        Some(other) => {
+                            match other.state.hardness().cmp(&state.hardness()) {
+                                std::cmp::Ordering::Greater => {
+                                    self.swap(cell.0, cell.1, (cell.0 + side, cell.1 + 1));
+                                    return;
+                                }
+                                std::cmp::Ordering::Less => (),
+                                std::cmp::Ordering::Equal => {
+                                    let rand = self.rng.gen_range(0..state.weight());
+                                    if rand == 0 {
+                                        self.swap(cell.0, cell.1, (cell.0 + side, cell.1 + 1));
+                                        return;
+                                    }
+                                }
+                            }
+                        },
+                        None => (),
+                    }
+                    side *= -1;
+                }
+                for _ in 0..2 {
+                    match self.get_cell(cell.0 + side, cell.1) {
+                        Some(other) => {
+                            match other.state.hardness().cmp(&state.hardness()) {
+                                std::cmp::Ordering::Greater => {
+                                    self.swap(cell.0, cell.1, (cell.0 + side, cell.1));
+                                    return;
+                                }
+                                std::cmp::Ordering::Less => (),
+                                std::cmp::Ordering::Equal => {
+                                    let rand = self.rng.gen_range(0..state.weight());
+                                    if rand == 0 {
+                                        self.swap(cell.0, cell.1, (cell.0 + side, cell.1));
+                                        return;
+                                    }
+                                }
+                            }
+                        },
+                        None => (),
+                    }
+                    side *= -1;
+                }
+            }
+        }
         match state {
             CellStates::Air => (),
             CellStates::Sand => {
@@ -84,40 +142,7 @@ impl Grid {
                 }
             },
             CellStates::Water => {
-                match self.get_cell(cell.0, cell.1 + 1) {
-                    Some(other) => {
-                        if other.state.hardness() > state.hardness() {
-                            self.swap(cell.0, cell.1, (cell.0, cell.1 + 1));
-                            return;
-                        }
-                    }
-                    None => ()
-                }
-                let mut side = self.rng.gen_range(0..2) * 2 - 1;
-                for _ in 0..2 {
-                    match self.get_cell(cell.0 + side, cell.1 + 1) {
-                        Some(other) => {
-                            if other.state.hardness() > state.hardness() {
-                                self.swap(cell.0, cell.1, (cell.0 + side, cell.1 + 1));
-                                return;
-                            }
-                        },
-                        None => (),
-                    }
-                    side *= -1;
-                }
-                for _ in 0..2 {
-                    match self.get_cell(cell.0 + side, cell.1) {
-                        Some(other) => {
-                            if other.state.hardness() > state.hardness() {
-                                self.swap(cell.0, cell.1, (cell.0 + side, cell.1));
-                                return;
-                            }
-                        },
-                        None => (),
-                    }
-                    side *= -1;
-                }
+                liquid_movement!(cell.0, cell.1, state);
             }
             CellStates::Plague => {
                 let victim = (self.rng.gen_range(0..2) * 2 - 1 + cell.0, self.rng.gen_range(0..2) * 2 - 1  + cell.1);
@@ -226,6 +251,21 @@ impl Grid {
             }
             CellStates::Wall => (),
             CellStates::Barrier => (),
+            CellStates::Acid => {
+                liquid_movement!(cell.0, cell.1, state);
+                if self.rng.gen_range(0..5) > 0 {return}
+                let walls = self.find_all_around(cell.0, cell.1, &CellStates::Wall);
+                if walls.len() == 0 {
+                    return;
+                }
+                let rand_idx = self.rng.gen_range(0..walls.len());
+                self.cell_unchecked(walls[rand_idx].0, walls[rand_idx].1).state = CellStates::Acid;
+
+                let dissapear = self.rng.gen_range(0..2);
+                if dissapear == 0 {
+                    self.cell_unchecked(cell.0, cell.1).state = CellStates::Air;
+                }
+            }
             CellStates::Border => unreachable!("Border should not be stepped"),
         }
     }
