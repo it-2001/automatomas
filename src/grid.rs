@@ -254,12 +254,12 @@ impl Grid {
             CellStates::Acid => {
                 liquid_movement!(cell.0, cell.1, state);
                 if self.rng.gen_range(0..5) > 0 {return}
-                let walls = self.find_all_around(cell.0, cell.1, &CellStates::Wall);
-                if walls.len() == 0 {
+                let solids = self.cmp_states_around(cell.0, cell.1, Hardness::Solid as i32, std::cmp::Ordering::Equal);
+                if solids.len() == 0 {
                     return;
                 }
-                let rand_idx = self.rng.gen_range(0..walls.len());
-                self.cell_unchecked(walls[rand_idx].0, walls[rand_idx].1).state = CellStates::Acid;
+                let rand_idx = self.rng.gen_range(0..solids.len());
+                self.cell_unchecked(solids[rand_idx].0, solids[rand_idx].1).state = CellStates::Acid;
 
                 let dissapear = self.rng.gen_range(0..2);
                 if dissapear == 0 {
@@ -323,6 +323,26 @@ impl Grid {
                 match self.get_cell(x + i, y + j) {
                     Some(cell) => {
                         if cell.state == *state {
+                            result.push((x+i, y+j));
+                        }
+                    }
+                    None => ()
+                }
+            }
+        }
+        result
+    }
+
+    pub fn cmp_states_around(&self, x: i32, y: i32, state: i32, cmp: std::cmp::Ordering) -> Vec<(i32, i32)> {
+        let mut result = Vec::new();
+        for i in -1..2 {
+            for j in -1..2 {
+                if i == 0 && j == 0 {
+                    continue;
+                }
+                match self.get_cell(x + i, y + j) {
+                    Some(cell) => {
+                        if cell.state.hardness().cmp(&state) == cmp {
                             result.push((x+i, y+j));
                         }
                     }
