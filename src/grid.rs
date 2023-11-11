@@ -115,9 +115,8 @@ impl Grid {
                 }
             }
         }
-        match state {
-            CellStates::Air => (),
-            CellStates::Sand => {
+        macro_rules! powder_movement {
+            () => {
                 match self.get_cell(cell.0, cell.1 + 1) {
                     Some(other) => {
                         if other.state.hardness() > state.hardness() {
@@ -140,6 +139,13 @@ impl Grid {
                     }
                     side *= -1;
                 }
+                
+            };
+        }
+        match state {
+            CellStates::Air => (),
+            CellStates::Sand => {
+                powder_movement!();
             },
             CellStates::Water => {
                 liquid_movement!(cell.0, cell.1, state);
@@ -162,6 +168,22 @@ impl Grid {
                 }
                 for gp in self.find_all_around(cell.0, cell.1, &CellStates::Water) {
                     self.cell_unchecked(gp.0, gp.1).state = CellStates::Vapor
+                }
+                if self.rng.gen_range(0..4) == 0 {
+                    for gp in self.find_all_around(cell.0, cell.1, &CellStates::Wood) {
+                        self.cell_unchecked(gp.0, gp.1).state = CellStates::Fire(1);
+                        let rand = self.rng.gen_range(0..5);
+                        if rand == 0 {
+                            self.cell_unchecked(cell.0, cell.1).state = CellStates::Ash;
+                        }
+                    }
+                }
+                for gp in self.find_all_around(cell.0, cell.1, &CellStates::Plague) {
+                    self.cell_unchecked(gp.0, gp.1).state = CellStates::Fire(1);
+                    let rand = self.rng.gen_range(0..5);
+                    if rand == 0 {
+                        self.cell_unchecked(cell.0, cell.1).state = CellStates::Ash;
+                    }
                 }
                 let rand = self.rng.gen_range(-1..2);
                 match self.get_cell(cell.0 + rand, cell.1 - 1) {
@@ -189,28 +211,7 @@ impl Grid {
                 }
             }
             CellStates::Gunpowder => {
-                match self.get_cell(cell.0, cell.1 + 1) {
-                    Some(other) => {
-                        if other.state.hardness() > state.hardness() {
-                            self.swap(cell.0, cell.1, (cell.0, cell.1 + 1));
-                            return;
-                        }
-                    }
-                    None => ()
-                }
-                let mut side = self.rng.gen_range(0..2) * 2 - 1;
-                for _ in 0..2 {
-                    match self.get_cell(cell.0 + side, cell.1 + 1) {
-                        Some(other) => {
-                            if other.state.hardness() > state.hardness() {
-                                self.swap(cell.0, cell.1, (cell.0 + side, cell.1 + 1));
-                                return;
-                            }
-                        },
-                        None => (),
-                    }
-                    side *= -1;
-                }
+                powder_movement!();
             }
             CellStates::Spark => {
                 let direction = loop {
@@ -259,12 +260,18 @@ impl Grid {
                     return;
                 }
                 let rand_idx = self.rng.gen_range(0..solids.len());
-                self.cell_unchecked(solids[rand_idx].0, solids[rand_idx].1).state = CellStates::Acid;
+                self.cell_unchecked(solids[rand_idx].0, solids[rand_idx].1).state = CellStates::Air;
 
-                let dissapear = self.rng.gen_range(0..2);
-                if dissapear == 0 {
+                let dissapear = self.rng.gen_range(0..5);
+                if dissapear != 0 {
                     self.cell_unchecked(cell.0, cell.1).state = CellStates::Air;
                 }
+            }
+            CellStates::Wood => {
+
+            }
+            CellStates::Ash => {
+                powder_movement!();
             }
             CellStates::Border => unreachable!("Border should not be stepped"),
         }

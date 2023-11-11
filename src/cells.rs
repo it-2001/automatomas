@@ -14,6 +14,8 @@ pub enum CellStates {
     Spark,
     Vapor,
     Acid,
+    Wood,
+    Ash,
 }
 
 impl CellStates {
@@ -35,6 +37,8 @@ impl CellStates {
             Self::Gunpowder => Color{r: 51, g: 51, b: 51, a: 255},
             Self::Spark => Color::WHITE,
             Self::Acid => Color{r: 0, g: 223, b: 70, a: 255},
+            Self::Wood => Color{r: 153, g: 102, b: 51, a: 255},
+            Self::Ash => Color{r: 95, g: 95, b: 95, a: 255},
             Self::Border => unreachable!("Border should not be drawn"),
         }
     }
@@ -53,6 +57,8 @@ impl CellStates {
             Self::Vapor => Hardness::Gas as i32,
             Self::Border => Hardness::Unbreakable as i32,
             Self::Acid => Hardness::Liquid as i32,
+            Self::Wood => Hardness::Solid as i32,
+            Self::Ash => Hardness::Solid as i32,
         }
     }
 
@@ -66,7 +72,7 @@ impl CellStates {
 
     /// Returns a list of all possible cell states in order. (except border)
     pub fn list() -> Vec<Self> {
-        vec![Self::Wall, Self::Sand, Self::Water, Self::Plague, Self::Fire(2), Self::Gunpowder, Self::Acid, Self::Barrier]
+        vec![Self::Wall, Self::Sand, Self::Water, Self::Plague, Self::Fire(2), Self::Gunpowder, Self::Acid, Self::Wood, Self::Barrier]
     }
 }
 
@@ -85,6 +91,8 @@ impl std::fmt::Display for CellStates {
             Self::Spark => write!(f, "Spark"),
             Self::Vapor => write!(f, "Vapor"),
             Self::Acid => write!(f, "Acid"),
+            Self::Wood => write!(f, "Wood"),
+            Self::Ash => write!(f, "Ash"),
         }
     }
 }
