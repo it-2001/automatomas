@@ -179,7 +179,7 @@ impl Grid {
                     }
                 }
                 for gp in self.find_all_around(cell.0, cell.1, &CellStates::Plague) {
-                    self.cell_unchecked(gp.0, gp.1).state = CellStates::Fire(1);
+                    self.cell_unchecked(gp.0, gp.1).state = CellStates::Fire(0);
                     let rand = self.rng.gen_range(0..5);
                     if rand == 0 {
                         self.cell_unchecked(cell.0, cell.1).state = CellStates::Ash;
