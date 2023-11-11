@@ -415,12 +415,14 @@ impl Game {
 #[derive(Debug, Clone, Copy)]
 pub struct Cell {
     pub state: CellStates,
+    pub temp: i32,
 }
 
 impl Cell {
     pub fn new() -> Cell {
         Cell {
             state: CellStates::Air,
+            temp: CellStates::Air.temperature(),
         }
     }
 }

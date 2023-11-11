@@ -29,9 +29,11 @@ impl CellStates {
             Self::Barrier => Color::RED,
             Self::Vapor => Color{r: 179, g: 179, b: 230, a: 255},
             Self::Fire(level) => match *level {
+                // yellow, orange, red, blue
                 0 => Color{r: 200, g: 255, b: 0, a: 255},
                 1 => Color{r: 200, g: 100, b: 0, a: 255},
                 2 => Color{r: 200, g: 0, b: 0, a: 255},
+                3 => Color{r: 70, g: 194, b: 203, a: 255},
                 _ => unreachable!("Fire not handled properly by the game")
             }
             Self::Gunpowder => Color{r: 51, g: 51, b: 51, a: 255},
@@ -70,9 +72,25 @@ impl CellStates {
         }
     }
 
+    pub fn temperature(&self) -> i32 {
+        match &self {
+            Self::Fire(level) => match *level {
+                0 => 600,
+                1 => 1000,
+                2 => 1500,
+                3 => 2200,
+                _ => unreachable!("Fire not handled properly by the game")
+            }
+            Self::Vapor => 100,
+            Self::Spark => 1000,
+            Self::Ash => 100,
+            _ => 0,
+        }
+    }
+
     /// Returns a list of all possible cell states in order. (except border)
     pub fn list() -> Vec<Self> {
-        vec![Self::Wall, Self::Sand, Self::Water, Self::Plague, Self::Fire(2), Self::Gunpowder, Self::Acid, Self::Wood, Self::Barrier]
+        vec![Self::Wall, Self::Sand, Self::Water, Self::Plague, Self::Fire(3), Self::Gunpowder, Self::Acid, Self::Wood, Self::Barrier]
     }
 }
 
