@@ -90,7 +90,7 @@ impl CellStates {
 
     /// Returns a list of all possible cell states in order. (except border)
     pub fn list() -> Vec<Self> {
-        vec![Self::Wall, Self::Sand, Self::Water, Self::Plague, Self::Fire(3), Self::Gunpowder, Self::Acid, Self::Wood, Self::Barrier]
+        vec![Self::Wall, Self::Sand, Self::Water, Self::Plague, Self::Fire(2), Self::Gunpowder, Self::Acid, Self::Wood, Self::Barrier]
     }
 }
 
